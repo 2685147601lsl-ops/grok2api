@@ -3,6 +3,7 @@ Grok Chat 服务
 """
 
 import time
+import uuid
 import orjson
 from typing import Dict, List, Any
 from dataclasses import dataclass
@@ -480,11 +481,23 @@ class ChatService:
                     yield f"data: {orjson.dumps(role_chunk).decode()}\n\n"
 
                     async for sse_msg in processor.process(image_gen):
+                        if not sse_msg.strip():
+                            continue
+                        
                         if sse_msg.startswith("event: image_generation.completed"):
                             # 提取 b64_json 或 url 并包装成 chat.completion.chunk
                             try:
-                                data_str = sse_msg.split("data: ", 1)[1].strip()
-                                data = orjson.loads(data_str)
+                                # 处理可能包含多行的情况
+                                data_line = ""
+                                for line in sse_msg.splitlines():
+                                    if line.startswith("data: "):
+                                        data_line = line[6:].strip()
+                                        break
+                                
+                                if not data_line:
+                                    continue
+                                    
+                                data = orjson.loads(data_line)
                                 
                                 content = ""
                                 if b64 := data.get("b64_json"):
