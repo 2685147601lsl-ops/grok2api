@@ -72,11 +72,31 @@ class ImageWSBaseProcessor(BaseProcessor):
     def _pick_best(self, existing: Optional[Dict], incoming: Dict) -> Dict:
         if not existing:
             return incoming
+        
+        # 获取 blob 大小（如果不存在则计算）
+        def get_size(d):
+            if "blob_size" in d:
+                return d["blob_size"]
+            return len(d.get("blob", ""))
+
+        # 如果 incoming 是 final 但没有 blob，尝试保留 existing 的 blob 并标记为 final
+        if incoming.get("is_final") and not incoming.get("blob") and existing.get("blob"):
+            res = existing.copy()
+            res["is_final"] = True
+            return res
+
         if incoming.get("is_final") and not existing.get("is_final"):
-            return incoming
+            # 只有当 incoming 有内容时才替换，否则只更新标记
+            if incoming.get("blob"):
+                return incoming
+            res = existing.copy()
+            res["is_final"] = True
+            return res
+
         if existing.get("is_final") and not incoming.get("is_final"):
             return existing
-        if incoming.get("blob_size", 0) > existing.get("blob_size", 0):
+        
+        if get_size(incoming) > get_size(existing):
             return incoming
         return existing
 
