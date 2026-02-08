@@ -67,13 +67,17 @@ class ImageWSBaseProcessor(BaseProcessor):
 
     def _pick_best(self, existing: Optional[Dict], incoming: Dict) -> Dict:
         if not existing:
+            if "blob" in incoming and "blob_size" not in incoming:
+                incoming["blob_size"] = len(incoming["blob"])
             return incoming
         
         # 获取 blob 大小（如果不存在则计算）
         def get_size(d):
             if "blob_size" in d:
                 return d["blob_size"]
-            return len(d.get("blob", ""))
+            size = len(d.get("blob", ""))
+            d["blob_size"] = size
+            return size
 
         # 如果 incoming 是 final 但没有 blob，尝试保留 existing 的 blob 并标记为 final
         if incoming.get("is_final") and not incoming.get("blob") and existing.get("blob"):
@@ -84,6 +88,8 @@ class ImageWSBaseProcessor(BaseProcessor):
         if incoming.get("is_final") and not existing.get("is_final"):
             # 只有当 incoming 有内容时才替换，否则只更新标记
             if incoming.get("blob"):
+                if "blob_size" not in incoming:
+                    incoming["blob_size"] = len(incoming["blob"])
                 return incoming
             res = existing.copy()
             res["is_final"] = True
@@ -129,10 +135,14 @@ class ImageWSStreamProcessor(ImageWSBaseProcessor):
     def _assign_index(self, image_id: str) -> Optional[int]:
         if image_id in self._index_map:
             return self._index_map[image_id]
-        if len(self._index_map) >= self.n:
+        
+        # 即使超过 n，也记录 image_id，但返回 None 表示不处理流式部分
+        idx = len(self._index_map)
+        self._index_map[image_id] = idx
+        
+        if idx >= self.n:
             return None
-        self._index_map[image_id] = len(self._index_map)
-        return self._index_map[image_id]
+        return idx
 
     def _sse(self, event: str, data: dict) -> str:
         return f"event: {event}\ndata: {orjson.dumps(data).decode()}\n\n"
@@ -199,37 +209,25 @@ class ImageWSStreamProcessor(ImageWSBaseProcessor):
                 )
 
         # 结束流式传输，发送最终结果
-        if self.n == 1:
-            # n=1 时，从所有收到的图片中选出最好的
-            all_images = sorted(
-                images.values(),
-                key=lambda x: (x.get("is_final", False), len(x.get("blob", ""))),
-                reverse=True,
-            )
-            selected_items = [all_images[0]] if all_images else []
-        else:
-            # n > 1 时，按 index_map 顺序返回
-            selected_items = []
-            for image_id in sorted(self._index_map, key=self._index_map.get):
-                if image_id in images:
-                    selected_items.append(images[image_id])
+        # 从所有收到的图片中选出最好的 n 张
+        all_images = sorted(
+            images.values(),
+            key=lambda x: (x.get("is_final", False), x.get("blob_size", 0)),
+            reverse=True,
+        )
+        selected_items = all_images[: self.n]
 
-        for item in selected_items:
+        for i, item in enumerate(selected_items):
             image_id = item.get("image_id", "")
             output = self._to_output(image_id, item)
             if not output:
                 continue
 
-            if self.n == 1:
-                index = 0
-            else:
-                index = self._index_map.get(image_id, 0)
-            
             res_data = {
                 "type": "image_generation.completed",
                 "created_at": int(time.time()),
                 "size": self.size,
-                "index": index,
+                "index": i,
                 "usage": {
                     "total_tokens": 0,
                     "input_tokens": 0,
