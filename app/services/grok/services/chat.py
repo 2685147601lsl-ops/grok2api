@@ -87,7 +87,7 @@ class MessageExtractor:
                 if content.strip():
                     msg, urls = MessageExtractor.extract_url_from_message(content)
                     parts.append(msg)
-                    attachments.extend(urls)
+                    attachments.extend([ ("image", url) for url in urls ])
             elif isinstance(content, list):
                 for item in content:
                     item_type = item.get("type", "")
@@ -96,7 +96,7 @@ class MessageExtractor:
                         if text := item.get("text", "").strip():
                             msg, urls = MessageExtractor.extract_url_from_message(text)
                             parts.append(msg)
-                            attachments.extend(urls)
+                            attachments.extend([ ("image", url) for url in urls ])
 
                     elif item_type == "image_url":
                         image_data = item.get("image_url", {})
