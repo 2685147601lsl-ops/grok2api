@@ -8,6 +8,7 @@ import hashlib
 import os
 import re
 import time
+import io
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +22,7 @@ except ImportError:
 
 import aiofiles
 from curl_cffi.requests import AsyncSession
+import PIL.Image
 
 from app.core.config import get_config
 from app.core.exceptions import AppException, UpstreamException, ValidationException
@@ -114,6 +116,70 @@ async def _file_lock(name: str, timeout: int = 10):
                     pass
             fd.close()
 
+def validate_base64_image(base64_str):
+    """
+    验证Base64图片字符串是否有效
+    返回: (是否有效, 错误信息/图片格式)
+    """
+
+    def check_image_header(data):
+        headers = {
+            b'\xff\xd8\xff': 'JPEG',
+            b'\x89PNG\r\n\x1a\n': 'PNG',
+            b'GIF87a': 'GIF',
+            b'GIF89a': 'GIF',
+            b'BM': 'BMP',
+            b'II*\x00': 'TIFF',
+            b'MM\x00*': 'TIFF',
+            b'RIFF': 'WEBP'
+        }
+        
+        for header, img_type in headers.items():
+            if data.startswith(header):
+                return True, img_type
+        return False, "Unknown image format"
+
+    try:
+        # 移除可能的data URL前缀
+        if base64_str.startswith('data:image'):
+            # 提取纯base64部分
+            match = re.search(r'base64,(.*)', base64_str)
+            if match:
+                base64_str = match.group(1)
+            else:
+                return False, "Invalid data URL format"
+        
+        # 1. 检查Base64字符集
+        # Base64只允许A-Z, a-z, 0-9, +, /, =
+        if not re.match(r'^[A-Za-z0-9+/]*={0,2}$', base64_str):
+            return False, "Invalid Base64 characters"
+        
+        # 2. 检查长度是否是4的倍数
+        if len(base64_str) % 4 != 0:
+            return False, "Base64 length not multiple of 4"
+        
+        # 3. 尝试解码
+        try:
+            image_data = base64.b64decode(base64_str, validate=True)
+        except Exception as e:
+            return False, f"Base64 decode failed: {str(e)}"
+        
+        # 4. 检查文件头（魔术字节）
+        is_valid, img_format = check_image_header(image_data)
+        if not is_valid:
+            return False, img_format
+        
+        # 5. 可选：使用PIL验证图片完整性
+        try:
+            img = PIL.Image.open(io.BytesIO(image_data))
+            assert isinstance(img, PIL.Image.Image)
+            img.verify()  # 验证图片完整性
+            return True, img_format
+        except Exception as e:
+            return False, f"Image corrupted: {str(e)}"
+    
+    except Exception as e:
+        return False, f"Validation error: {str(e)}"
 
 @dataclass
 class ServiceConfig:
@@ -305,6 +371,10 @@ class UploadService(BaseService):
 
             if not b64:
                 raise ValidationException(f"Invalid file input: empty content from {file_input[:24]}")
+            
+            correct, reason = validate_base64_image(b64)
+            if not correct:
+                raise ValidationException(f"Invalid file input: {reason} from {file_input[:24]}")
 
             # 执行上传
             session = await self._get_session()
