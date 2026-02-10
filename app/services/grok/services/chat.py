@@ -509,14 +509,14 @@ class ChatService:
                                 content = ""
                                 if b64 := data.get("b64_json"):
                                     img_id = str(uuid.uuid4())[:8]
-                                    content = f"![{img_id}](data:image/jpeg;base64,{b64})\n"
-                                elif url := data.get("url"):
+                                    content += f"![{img_id}](data:image/jpeg;base64,{b64})\n"
+                                if url := data.get("url"):
                                     img_id = str(uuid.uuid4())[:8]
-                                    content = f"![{img_id}]({url})\n"
-                                elif b64 := data.get("base64"):
+                                    content += f"![{img_id}]({url})\n"
+                                if b64 := data.get("base64"):
                                     img_id = str(uuid.uuid4())[:8]
-                                    content = f"![{img_id}](data:image/jpeg;base64,{b64})\n"
-                                else:
+                                    content += f"![{img_id}](data:image/jpeg;base64,{b64})\n"
+                                if not content:
                                     logger.warning(f"Invalid image data: {data}")
                                 
                                 if content:
@@ -741,15 +741,15 @@ class ChatService:
                             content = ""
                             if b64 := data.get("b64_json"):
                                 img_id = str(uuid.uuid4())[:8]
-                                content = f"![{img_id}](data:image/jpeg;base64,{b64})\n"
-                            elif url := data.get("url"):
+                                content += f"![{img_id}](data:image/jpeg;base64,{b64})\n"
+                            if url := data.get("url"):
                                 img_id = str(uuid.uuid4())[:8]
-                                content = f"![{img_id}]({url})\n"
-                                content = f"![{img_id}](data:image/jpeg;base64,{b64})\n"
-                            elif b64 := data.get("base64"):
+                                content += f"![{img_id}]({url})\n"
+                            if b64 := data.get("base64"):
                                 img_id = str(uuid.uuid4())[:8]
-                                content = f"![{img_id}](data:image/jpeg;base64,{b64})\n"
-                            else:
+                                content += f"![{img_id}](data:image/jpeg;base64,{b64})\n"
+                            
+                            if not content:
                                 logger.warning(f"Invalid image data: {data}")
                             
                             if content:
