@@ -85,7 +85,8 @@ class ImageStreamProcessor(BaseProcessor):
                     continue
 
                 # modelResponse
-                if mr := resp.get("modelResponse"):
+                mr = resp.get("modelResponse")
+                if mr:
                     if urls := _collect_image_urls(mr):
                         for url in urls:
                             if self.response_format == "url":
@@ -114,6 +115,9 @@ class ImageStreamProcessor(BaseProcessor):
                     continue
 
             logger.info(f"Final images: {len(final_images)}")
+            if not final_images:
+                logger.error(f"No final images found {mr}")
+
             for index, b64 in enumerate(final_images):
                 if self.n == 1:
                     if index != self.target_index:
@@ -199,7 +203,8 @@ class ImageCollectProcessor(BaseProcessor):
 
                 resp = data.get("result", {}).get("response", {})
 
-                if mr := resp.get("modelResponse"):
+                mr = resp.get("modelResponse")
+                if mr:
                     if urls := _collect_image_urls(mr):
                         for url in urls:
                             if self.response_format == "url":
@@ -244,6 +249,9 @@ class ImageCollectProcessor(BaseProcessor):
             await self.close()
 
         logger.info(f"Final images: {len(images)}")
+        if not images:
+            logger.error(f"No final images found {mr}")
+
         return images
 
 
