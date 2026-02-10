@@ -342,6 +342,11 @@ class UploadService(BaseService):
 
             # 其他错误
             logger.error(f"Upload failed: {filename} - {response.status_code} - {response.text[:50]} - {file_input[:24]}")
+
+            # 图片格式错误
+            if "Cannot open given image" in response.text:
+                raise ValidationException(f"Invalid image file: {filename}")
+
             raise UpstreamException(
                 message=f"Upload failed: {response.status_code}",
                 details={"status": response.status_code},
