@@ -117,8 +117,6 @@ class ImageStreamProcessor(BaseProcessor):
                     continue
 
             logger.info(f"Final images: {len(final_images)}")
-            if not final_images:
-                logger.error(f"No final images found {responses}")
 
             for index, b64 in enumerate(final_images):
                 if self.n == 1:
@@ -253,9 +251,6 @@ class ImageCollectProcessor(BaseProcessor):
             await self.close()
 
         logger.info(f"Final images: {len(images)}")
-        if not images:
-            logger.error(f"No final images found {responses}")
-        
         return images
 
 
