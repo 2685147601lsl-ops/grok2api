@@ -294,7 +294,7 @@ class UploadService(BaseService):
             )
 
             if not b64:
-                raise ValidationException("Invalid file input: empty content")
+                raise ValidationException(f"Invalid file input: empty content from {file_input[:24]}")
 
             # 执行上传
             session = await self._get_session()
@@ -331,7 +331,7 @@ class UploadService(BaseService):
                 )
 
             # 其他错误
-            logger.error(f"Upload failed: {filename} - {response.status_code}")
+            logger.error(f"Upload failed: {filename} - {response.status_code} - {response.text} - {file_input[:24]}")
             raise UpstreamException(
                 message=f"Upload failed: {response.status_code}",
                 details={"status": response.status_code},
