@@ -36,12 +36,20 @@ class VideoStreamProcessor(BaseProcessor):
         else:
             self.show_think = think
 
-    def _sse(self, content: str = "", role: str = None, finish: str = None) -> str:
+    def _sse(
+        self,
+        content: str = "",
+        role: str = None,
+        finish: str = None,
+        reasoning_content: str = None,
+    ) -> str:
         """构建 SSE 响应"""
         delta = {}
         if role:
             delta["role"] = role
             delta["content"] = ""
+        if reasoning_content is not None:
+            delta["reasoning_content"] = reasoning_content
         elif content:
             delta["content"] = content
 
@@ -98,16 +106,16 @@ class VideoStreamProcessor(BaseProcessor):
 
                     if self.show_think:
                         if not self.think_opened:
-                            yield self._sse("<think>\n")
                             self.think_opened = True
-                        yield self._sse(f"正在生成视频中，当前进度{progress}%\n")
+                        yield self._sse(
+                            reasoning_content=f"正在生成视频中，当前进度{progress}%\n"
+                        )
 
                     if progress == 100:
                         video_url = video_resp.get("videoUrl", "")
                         thumbnail_url = video_resp.get("thumbnailImageUrl", "")
 
                         if self.think_opened and self.show_think:
-                            yield self._sse("</think>\n")
                             self.think_opened = False
 
                         if video_url:
@@ -130,7 +138,7 @@ class VideoStreamProcessor(BaseProcessor):
                     continue
 
             if self.think_opened:
-                yield self._sse("</think>\n")
+                self.think_opened = False
             yield self._sse(finish="stop")
             yield "data: [DONE]\n\n"
         except asyncio.CancelledError:
