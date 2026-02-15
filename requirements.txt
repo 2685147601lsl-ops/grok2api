@@ -38,6 +38,7 @@ python-multipart>=0.0.21
 python-socks==2.8.0
 pyyaml>=6.0.3
 redis>=6.4.0
+Pillow>=10.0.0
 sqlalchemy>=2.0.46
 starlette==0.50.0
 tomli>=2.4.0
