@@ -30,7 +30,7 @@ COPY scripts ./scripts
 RUN mkdir -p /app/data /app/data/tmp /app/logs \
     && chmod +x /app/scripts/entrypoint.sh
 
-EXPOSE 8000
+EXPOSE 8080
 
 ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 
