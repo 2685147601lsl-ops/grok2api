@@ -32,6 +32,5 @@ RUN mkdir -p /app/data /app/data/tmp /app/logs \
 
 EXPOSE 8080
 
-ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
